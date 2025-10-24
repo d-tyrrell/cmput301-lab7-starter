@@ -30,6 +30,9 @@ import org.junit.runner.RunWith;
 import static androidx.test.espresso.intent.Intents.intended;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasComponent;
 
+import android.widget.ListView;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 
 @RunWith(AndroidJUnit4.class)
@@ -83,7 +86,7 @@ public class MainActivityTest {
         // (which is an instance of String) located at position zero.
         // If this data matches the text we provided then Voila! Our test should pass
         // You can also use anything() in place of is(instanceOf(String.class))
-         onData(is(instanceOf(String.class))).inAdapterView(withId(R.id.city_list )).atPosition(0).check(matches((withText("Edmonton"))));
+         onData(is(instanceOf(String.class))).inAdapterView(withId(R.id.city_list)).atPosition(0).check(matches((withText("Edmonton"))));
 
     }
 
@@ -94,6 +97,8 @@ public class MainActivityTest {
 
     @Rule
     public IntentsRule intentsRule = new IntentsRule();   // <-- auto init/release
+
+    // above code also works for back button testing
 
     @Test
     public void testActivitySwitch() {
@@ -107,7 +112,51 @@ public class MainActivityTest {
         intended(hasComponent(ShowActivity.class.getName())); // verify launch
     }
 
-    
+    @Test
+    public void testCityNameConsistency(){
+        // add the montreal city to the list
+        onView(withId(R.id.button_add)).perform(click());
+        onView(withId(R.id.editText_name)).perform(typeText("Montreal"));
+        onView(withId(R.id.button_confirm)).perform(click());
 
+        final int position = 0; // montreal should be position 0 in the list now
+        final AtomicReference<String> clickedCity = new AtomicReference<>(); // saving the clickedCity name
+
+        // Read the city name from the ListView's adapter BEFORE we click
+        activityRule.getScenario().onActivity(activity -> {
+            ListView list = activity.findViewById(R.id.city_list);
+            Object item = list.getAdapter().getItem(position);
+            clickedCity.set(String.valueOf(item));
+        });
+
+        // finds the first item in the list and clicks it
+        onData(is(instanceOf(String.class))).inAdapterView(withId(R.id.city_list )).atPosition(0).perform(click());
+
+        // Assert the displayed title equals the city we clicked
+        onView(withId(R.id.showCityText))
+                .check(matches(withText(clickedCity.get())));
+    }
+
+    //  ************** Back Button testing:  **************
+    @Test
+    public void testBackButton() {
+        // add the montreal city to the list
+        onView(withId(R.id.button_add)).perform(click());
+        onView(withId(R.id.editText_name)).perform(typeText("Montreal"));
+        onView(withId(R.id.button_confirm)).perform(click());
+
+        // finds the Montreal item in the list and clicks it
+        onData(is(instanceOf(String.class))).inAdapterView(withId(R.id.city_list )).atPosition(0).perform(click());
+
+        // Verify ShowActivity is displayed
+        intended(hasComponent(ShowActivity.class.getName()));
+
+        // Click the back button
+        onView(withId(R.id.backButton)).perform(click());
+
+        // Verify the current activity is MainActivity again
+        intended(hasComponent(MainActivity.class.getName()));
+
+    }
 
 }
